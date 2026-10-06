@@ -10,7 +10,9 @@ from app.tariffs import seed_tariffs
 from app.webhooks import router as webhooks_router
 
 
-def create_app(database_url: str | None = None) -> FastAPI:
+def create_app(
+    database_url: str | None = None, webhook_secret: str | None = None
+) -> FastAPI:
     url = (
         database_url
         if database_url is not None
@@ -30,6 +32,11 @@ def create_app(database_url: str | None = None) -> FastAPI:
             engine.dispose()
 
     application = FastAPI(title="Kvitto Payments API", lifespan=lifespan)
+    application.state.webhook_secret = (
+        webhook_secret
+        if webhook_secret is not None
+        else os.environ.get("WEBHOOK_SECRET", "")
+    )
     application.include_router(tariffs_router)
     application.include_router(payments_router)
     application.include_router(webhooks_router)

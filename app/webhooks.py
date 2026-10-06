@@ -1,6 +1,9 @@
+import hashlib
+import hmac
+import re
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import update
 from sqlalchemy.exc import SQLAlchemyError
@@ -52,7 +55,25 @@ def update_payment_status(session: Session, payment_id: int, target: str) -> Non
         raise
 
 
-@router.post("/webhooks/bank", response_model=None)
+async def verify_signature(
+    request: Request,
+    signature: Annotated[str | None, Header(alias="X-Signature")] = None,
+) -> None:
+    secret = request.app.state.webhook_secret
+    if not secret:
+        return
+    if signature is None or re.fullmatch(r"[0-9a-fA-F]{64}", signature) is None:
+        raise HTTPException(status_code=401, detail="Invalid webhook signature")
+    expected = hmac.new(
+        secret.encode("utf-8"), await request.body(), hashlib.sha256
+    ).digest()
+    if not hmac.compare_digest(expected, bytes.fromhex(signature)):
+        raise HTTPException(status_code=401, detail="Invalid webhook signature")
+
+
+@router.post(
+    "/webhooks/bank", response_model=None, dependencies=[Depends(verify_signature)]
+)
 def bank_webhook(
     data: BankWebhook, session: Annotated[Session, Depends(get_session)]
 ) -> dict[str, str] | JSONResponse:
