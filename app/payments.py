@@ -1,8 +1,9 @@
 import sqlite3
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Response
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
 from fastapi.exceptions import RequestValidationError
+from pydantic import EmailStr
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -10,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.db import get_session
 from app.models import Payment, Tariff
 from app.money import build_schedule, calculate_amount
-from app.schemas import PaymentCreate, PaymentResponse
+from app.schemas import PaymentCreate, PaymentResponse, PaymentStatus
 
 router = APIRouter()
 
@@ -111,6 +112,20 @@ def post_payment(
             raise
         response.status_code = 200
         return existing
+
+
+@router.get("/payments", response_model=list[PaymentResponse])
+def list_payments(
+    session: Annotated[Session, Depends(get_session)],
+    email: Annotated[EmailStr | None, Query()] = None,
+    status: Annotated[PaymentStatus | None, Query()] = None,
+) -> list[Payment]:
+    statement = select(Payment).order_by(Payment.id)
+    if email is not None:
+        statement = statement.where(Payment.email == str(email))
+    if status is not None:
+        statement = statement.where(Payment.status == status)
+    return list(session.scalars(statement))
 
 
 @router.get("/payments/{id}", response_model=PaymentResponse)
