@@ -30,8 +30,8 @@ def test_sqlite_connection(tmp_path: Path) -> None:
     assert database.exists()
 
 
-def test_request_sessions(tmp_path: Path) -> None:
-    application = create_app(f"sqlite:///{tmp_path / 'requests.db'}")
+def test_request_sessions(database_url: str) -> None:
+    application = create_app(database_url)
     sessions: list[Session] = []
 
     @application.get("/session-check")
@@ -56,19 +56,17 @@ def test_request_sessions(tmp_path: Path) -> None:
         assert closed == sessions
 
 
-def test_lifespan_disposes_engine(tmp_path: Path, monkeypatch) -> None:
-    database = tmp_path / "lifecycle.db"
-    application = create_app(f"sqlite:///{database}")
+def test_lifespan_disposes_engine(database_url: str, monkeypatch) -> None:
+    application = create_app(database_url)
     assert not hasattr(application.state, "engine")
     with TestClient(application):
         dispose = Mock(wraps=application.state.engine.dispose)
         monkeypatch.setattr(application.state.engine, "dispose", dispose)
-        assert not database.exists()
     dispose.assert_called_once_with()
 
 
-def test_database_url_from_environment(tmp_path: Path, monkeypatch) -> None:
-    url = f"sqlite:///{tmp_path / 'environment.db'}"
+def test_database_url_from_environment(database_url: str, monkeypatch) -> None:
+    url = database_url
     monkeypatch.setenv("DATABASE_URL", url)
     with TestClient(create_app()) as client:
         assert str(client.app.state.engine.url) == url

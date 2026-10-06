@@ -73,3 +73,8 @@ class PaymentResponse(BaseModel):
         if value.tzinfo is None:
             return value.replace(tzinfo=UTC)
         return value.astimezone(UTC)
+
+
+class BankWebhook(BaseModel):
+    payment_id: PositiveInt
+    status: PaymentStatus
