@@ -108,18 +108,24 @@ assert secret, "Задайте тот же непустой WEBHOOK_SECRET, чт
 
 
 def request(path, body=None, headers=None):
-    with urlopen(Request(base + path, data=body, headers=headers or {}), timeout=10) as response:
+    with urlopen(
+        Request(base + path, data=body, headers=headers or {}), timeout=10
+    ) as response:
         return response.status, json.load(response)
 
 
 tariff_id = next(t["id"] for t in request("/tariffs")[1] if t["title"] == "standard")
 content_type = {"Content-Type": "application/json"}
-create_body = json.dumps({"tariff_id": tariff_id, "email": "signed@example.com", "method": "card"}).encode()
+create_body = json.dumps(
+    {"tariff_id": tariff_id, "email": "signed@example.com", "method": "card"}
+).encode()
 code, payment = request("/payments", create_body, content_type)
 assert code == 201
 body = json.dumps({"payment_id": payment["id"], "status": "succeeded"}).encode()
 signature = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
-code, result = request("/webhooks/bank", body, {**content_type, "X-Signature": signature})
+code, result = request(
+    "/webhooks/bank", body, {**content_type, "X-Signature": signature}
+)
 assert code == 200 and result == {"result": "ok"}
 print("Платёж", payment["id"], "вебхук:", code, result)
 ```
@@ -161,5 +167,5 @@ succeeded → refunded. Повтор статуса и остальные пер
 фронтенда, реального банка и деплоя. Тесты проходят с предупреждением Starlette
 об использовании httpx в TestClient; оно не подавлено. Сборка и запуск Docker,
 права UID 10001, сохранение платежа при пересоздании и штатное завершение проверены
-локально. Команды CI проверены в чистом временном окружении; успешный запуск
-GitHub Actions на удалённом runner пока не подтверждён.
+локально. Команды CI проверены в чистом временном окружении. Результаты
+GitHub Actions доступны во вкладке Actions репозитория для каждого коммита.
