@@ -1,0 +1,14 @@
+services:
+  api:
+    build: .
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      DATABASE_URL: sqlite:////data/kvitto.db
+      WEBHOOK_SECRET: "${WEBHOOK_SECRET:-}"
+    volumes:
+      - payments-data:/data
+    stop_grace_period: 20s
+
+volumes:
+  payments-data:
