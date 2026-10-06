@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14.6"
+      - name: Install runtime dependencies
+        run: python -m pip install -r requirements-runtime.txt
+      - name: Install project and development dependencies
+        run: python -m pip install -c requirements-runtime.txt ".[dev]"
+      - name: Check dependencies
+        run: python -m pip check
+      - name: Lint
+        run: ruff check .
+      - name: Check formatting
+        run: ruff format --check .
+      - name: Test
+        run: python -m pytest
